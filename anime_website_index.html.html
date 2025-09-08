@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cartoon & Anime Hub — Demo</title>
+<style>
+:root{--brand:#6b21a8;--dark:#0f1720;--muted:#6b7280;--bg:#f8fafc;--card:#fff}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,Roboto,-apple-system,Segoe UI,'Noto Sans';background:var(--bg);color:#0b1220}
+.container{max-width:1100px;margin:18px auto;padding:0 16px}
+.header{background:linear-gradient(90deg,#ffffff00,#ffffff00);padding:12px 0;border-bottom:1px solid #eef2ff}
+.wrap{display:flex;align-items:center;gap:12px;justify-content:space-between;max-width:1100px;margin:0 auto;padding:0 16px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo-svg{width:56px;height:56px;display:grid;place-items:center;border-radius:10px;background:linear-gradient(135deg,var(--brand),#a78bfa);color:#fff;font-weight:800}
+.site-title{font-weight:800;font-size:18px}
+.site-tag{font-size:12px;color:#6b7280}
+.search{flex:1;margin:0 18px;display:flex;gap:8px}
+.search input{flex:1;padding:8px;border-radius:8px;border:1px solid #e6edf3}
+.btn{background:var(--brand);color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
+nav.cats{background:#fff;padding:10px;border-bottom:1px solid #e6edf3}
+nav .list{display:flex;gap:8px;overflow:auto;padding:0 16px}
+.cat{padding:6px 10px;border-radius:999px;background:transparent;color:var(--muted);cursor:pointer;white-space:nowrap;border:1px solid transparent}
+.cat.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+.main{display:grid;grid-template-columns:260px 1fr;gap:18px;margin:18px auto;max-width:1100px}
+.sidebar{background:var(--card);border-radius:12px;padding:12px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.main{grid-template-columns:1fr}}
+.card{background:var(--card);border-radius:12px;padding:8px;border:1px solid #eef3f7}
+.card img, .card video{width:100%;height:160px;object-fit:cover;border-radius:8px}
+.meta{color:var(--muted);font-size:13px}
+.modal{position:fixed;inset:0;background:rgba(11,17,32,.45);display:none;align-items:center;justify-content:center;z-index:200}
+.panel{width:920px;max-width:96%;background:#fff;padding:16px;border-radius:12px;max-height:88vh;overflow:auto}
+.field{margin:8px 0}
+input, textarea, select{width:100%;padding:10px;border-radius:8px;border:1px solid #e6edf3}
+.footer{text-align:center;margin-top:22px;color:var(--muted);padding-bottom:30px}
+.admin-only{display:none}
+.notice{background:#fff3cd;padding:8px;border-radius:8px;color:#664d03;margin-bottom:10px}
+</style>
+</head>
+<body>
+  <header class="header">
+    <div class="wrap">
+      <div class="brand">
+        <div class="logo-svg" aria-hidden="true">
+          <!-- Inline SVG logo: stylized CA -->
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="36" height="36" rx="8" fill="white" fill-opacity="0"/>
+            <circle cx="18" cy="18" r="16" fill="white" fill-opacity="0.08" />
+            <text x="50%" y="52%" text-anchor="middle" dominant-baseline="middle" font-family="Inter, sans-serif" font-size="14" font-weight="700" fill="white">CA</text>
+          </svg>
+        </div>
+        <div>
+          <div class="site-title">Cartoon & Anime Hub</div>
+          <div class="site-tag">Upload & Manage — Demo</div>
+        </div>
+      </div>
+
+      <div class="search">
+        <input id="q" placeholder="Search title or description..." oninput="debouncedSearch()">
+        <button class="btn" onclick="doSearch()">Search</button>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn" onclick="openLoginAdmin()">Admin</button>
+        <button class="btn" id="uploadBtn" onclick="openUpload()" style="display:none">Upload (Admin)</button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="cats"><div class="list" id="cats"></div></nav>
+
+  <main class="main container">
+    <aside class="sidebar">
+      <h4>Filters</h4>
+      <div><label><input type="checkbox" id="onlyVideos" onchange="applyFilters()"> Only Videos</label></div>
+      <div><label><input type="checkbox" id="onlyImages" onchange="applyFilters()"> Only Images</label></div>
+      <h4 style="margin-top:12px">Sort</h4>
+      <select id="sortBy" onchange="applyFilters()"><option value="new">Newest</option><option value="old">Oldest</option><option value="title">Title</option></select>
+      <div style="margin-top:12px" class="notice">Admin controls (upload/manage) are visible only after Admin login.</div>
+    </aside>
+
+    <section>
+      <header style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div><strong id="count">0</strong> items</div>
+        <div class="meta">Public gallery — upload by admin only</div>
+      </header>
+      <div class="grid" id="grid"></div>
+    </section>
+  </main>
+
+  <!-- Upload Modal (Admin only) -->
+  <div class="modal" id="uploadModal" onclick="closeModal(event)">
+    <div class="panel">
+      <h3>Upload Media (Admin)</h3>
+      <div class="field"><label>Title</label><input id="mTitle"></div>
+      <div class="field"><label>Category</label><select id="mCat"></select></div>
+      <div class="field"><label>Type</label><select id="mType" onchange="toggleMediaInput()"><option value="image">Image (file)</option><option value="video_url">Video URL (YouTube)</option></select></div>
+      <div class="field" id="imgInput"><label>Image File (optional)</label><input type="file" id="mFile" accept="image/*"></div>
+      <div class="field" id="urlInput" style="display:none"><label>Video URL</label><input id="mUrl" placeholder="https://youtube.com/..." ></div>
+      <div class="field"><label>Description</label><textarea id="mDesc"></textarea></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" onclick="saveMedia()">Save</button><button onclick="closeUpload()">Cancel</button></div>
+    </div>
+  </div>
+
+  <!-- Admin Login Modal -->
+  <div class="modal" id="adminLoginModal" onclick="closeModal(event)">
+    <div class="panel">
+      <h3>Admin Login / Set Password</h3>
+      <div class="field"><input id="adminPwd" placeholder="Enter password"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" onclick="doAdminLogin()">Login / Set</button><button onclick="closeAdminLogin()">Cancel</button></div>
+      <div id="loginNotice" class="small" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <footer class="footer container"><div class="small">Demo site — cartoons & anime gallery (frontend-only)</div><div>&copy; <span id="yr"></span></div></footer>
+
+<script>
+/* Keys & defaults */
+const MEDIA_KEY='ca_media_v1';
+const PASS_KEY='ca_admin_pass_v1';
+const CAT_LIST = ['All','Cartoon','Anime','Series','Movies','Kids','Action','Comedy','Fantasy'];
+let media = JSON.parse(localStorage.getItem(MEDIA_KEY) || 'null') || [];
+let adminLogged = !!localStorage.getItem(PASS_KEY);
+
+function init(){
+  const cats = document.getElementById('cats'); cats.innerHTML='';
+  CAT_LIST.forEach(c=>{ const d = document.createElement('div'); d.className='cat'+(c==='All'? ' active':''); d.textContent=c; d.setAttribute('data-cat', c.toLowerCase()); d.onclick = ()=>{ document.querySelectorAll('.cat').forEach(x=>x.classList.remove('active')); d.classList.add('active'); applyFilters(); }; cats.appendChild(d); });
+  const mCat = document.getElementById('mCat'); mCat.innerHTML=''; CAT_LIST.slice(1).forEach(c=>{ const o=document.createElement('option'); o.value=c.toLowerCase(); o.textContent=c; mCat.appendChild(o); });
+  document.getElementById('yr').textContent = new Date().getFullYear();
+  renderGrid(media);
+  toggleAdminUI();
+}
+function toggleAdminUI(){ document.getElementById('uploadBtn').style.display = adminLogged? 'inline-block':'none'; }
+function renderGrid(list){ const g = document.getElementById('grid'); g.innerHTML=''; list.forEach(item=>{ const card = document.createElement('div'); card.className='card'; let mediaEl = ''; if(item.type === 'image') mediaEl = `<img src="${item.src}" alt="${escapeHtml(item.title)}">`; else if(item.type === 'video_url'){ const id = youtubeID(item.src); mediaEl = `<img src="https://img.youtube.com/vi/${id}/hqdefault.jpg" alt="${escapeHtml(item.title)}">`; } card.innerHTML = `${mediaEl}<div style="margin-top:8px"><b>${escapeHtml(item.title)}</b></div><div class="meta">${escapeHtml(item.cat)} • ${item.type} • ${new Date(item.created).toLocaleString()}</div>`; if(adminLogged){ const adminDiv = document.createElement('div'); adminDiv.style.marginTop='8px'; adminDiv.innerHTML = `<button onclick="editMedia('${item.id}')">Edit</button> <button onclick="deleteMedia('${item.id}')">Delete</button>`; card.appendChild(adminDiv); } g.appendChild(card); }); document.getElementById('count').textContent = list.length; }
+function youtubeID(url){ try{ const m = url.match(/[?&]v=([^&]+)/); if(m) return m[1]; const p = url.match(/youtu\.be\/([^?&]+)/); if(p) return p[1]; return ''; }catch(e){return ''} }
+function escapeHtml(s){ return String(s||'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) }
+let currentFilter = {cat:'all', onlyVideos:false, onlyImages:false, sort:'new', q:''};
+function applyFilters(){ currentFilter.onlyVideos = document.getElementById('onlyVideos').checked; currentFilter.onlyImages = document.getElementById('onlyImages').checked; currentFilter.sort = document.getElementById('sortBy').value; const active = document.querySelector('.cat.active'); currentFilter.cat = active? active.getAttribute('data-cat') : 'all'; filterAndRender(); }
+function doSearch(){ currentFilter.q = document.getElementById('q').value.trim().toLowerCase(); filterAndRender(); }
+function debouncedSearch(){ clearTimeout(window._t); window._t = setTimeout(doSearch,300); }
+function filterAndRender(){ let list = media.slice(); if(currentFilter.cat && currentFilter.cat!=='all') list = list.filter(i=> i.cat === currentFilter.cat); if(currentFilter.onlyVideos) list = list.filter(i=> i.type==='video_url'); if(currentFilter.onlyImages) list = list.filter(i=> i.type==='image'); if(currentFilter.q){ const terms = currentFilter.q.split(/\s+/); list = list.filter(item=>{ const text = (item.title+' '+item.desc).toLowerCase(); return terms.every(t=> text.includes(t)); }); } if(currentFilter.sort==='new') list.sort((a,b)=> b.created - a.created); else if(currentFilter.sort==='old') list.sort((a,b)=> a.created - b.created); else if(currentFilter.sort==='title') list.sort((a,b)=> a.title.localeCompare(b.title)); renderGrid(list); }
+function openLoginAdmin(){ document.getElementById('adminLoginModal').style.display='flex'; document.getElementById('loginNotice').textContent = localStorage.getItem(PASS_KEY)? 'Enter admin password to login':'No admin password set — set one now (min 4 chars)'; }
+function closeAdminLogin(){ document.getElementById('adminLoginModal').style.display='none'; }
+function doAdminLogin(){ const v = document.getElementById('adminPwd').value.trim(); if(!localStorage.getItem(PASS_KEY)){ if(v.length<4){ alert('Password min 4 chars'); return; } localStorage.setItem(PASS_KEY, v); adminLogged = true; alert('Admin password set and logged in'); closeAdminLogin(); toggleAdminUI(); renderGrid(media); return; } if(v === localStorage.getItem(PASS_KEY)){ adminLogged = true; alert('Logged in as admin'); closeAdminLogin(); toggleAdminUI(); renderGrid(media); } else { const n = document.getElementById('loginNotice'); n.textContent = 'Wrong password'; setTimeout(()=>n.textContent='',2000); } }
+function openUpload(){ if(!adminLogged){ alert('Admin login required'); return;} document.getElementById('uploadModal').style.display='flex'; document.getElementById('mTitle').value=''; document.getElementById('mDesc').value=''; document.getElementById('mFile').value=null; document.getElementById('mUrl').value=''; document.getElementById('mType').value='image'; toggleMediaInput(); }
+function closeUpload(){ document.getElementById('uploadModal').style.display='none'; }
+function toggleMediaInput(){ const t = document.getElementById('mType').value; document.getElementById('imgInput').style.display = t==='image'? 'block':'none'; document.getElementById('urlInput').style.display = t==='video_url'? 'block':'none'; }
+function saveMedia(){ if(!adminLogged){ alert('Admin only'); return;} const title = document.getElementById('mTitle').value.trim(); const cat = document.getElementById('mCat').value; const type = document.getElementById('mType').value; const desc = document.getElementById('mDesc').value.trim(); if(!title){ alert('Title required'); return;} if(type==='image'){ const file = document.getElementById('mFile').files[0]; if(file){ const reader=new FileReader(); reader.onload = function(e){ const src = e.target.result; const item = { id: 'm'+(Date.now()), title, cat, type, desc, src, created: Date.now() }; media.unshift(item); localStorage.setItem(MEDIA_KEY, JSON.stringify(media)); closeUpload(); filterAndRender(); }; reader.readAsDataURL(file); return; } else { alert('Please choose an image file'); return; } } else { const url = document.getElementById('mUrl').value.trim(); if(!url){ alert('Video URL required'); return;} const item = { id:'m'+(Date.now()), title, cat, type, desc, src: url, created: Date.now() }; media.unshift(item); localStorage.setItem(MEDIA_KEY, JSON.stringify(media)); closeUpload(); filterAndRender(); } }
+function editMedia(id){ if(!adminLogged) return; const item = media.find(m=>m.id===id); if(!item) return; const title = prompt('Title', item.title); if(title===null) return; const desc = prompt('Description', item.desc||''); item.title = title; item.desc = desc||item.desc; localStorage.setItem(MEDIA_KEY, JSON.stringify(media)); filterAndRender(); }
+function deleteMedia(id){ if(!adminLogged) return; if(!confirm('Delete this item?')) return; media = media.filter(m=>m.id!==id); localStorage.setItem(MEDIA_KEY, JSON.stringify(media)); filterAndRender(); }
+function closeModal(e){ if(!e) return; if(e.target.classList.contains('modal')) e.target.style.display='none'; }
+init();
+</script>
+</body>
+</html>
